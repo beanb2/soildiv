@@ -8,10 +8,14 @@ using namespace Rcpp;
 // for the resamp function.
 
 // [[Rcpp::export]]
-IntegerMatrix resamp_cpp(IntegerVector x, int boot, int seed) {
+IntegerMatrix resamp_cpp(NumericVector x, int boot) {
 
   // Determine the total number of pixels.
   int n = sum(x);
+
+  NumericVector probs = cumsum(x);
+
+  probs = probs / n;
 
   // Determine the total number of unique pixel types.
   int l = x.length();
@@ -21,22 +25,20 @@ IntegerMatrix resamp_cpp(IntegerVector x, int boot, int seed) {
   // unique pixel types.
   IntegerMatrix v (boot, l);
 
-  // Define a random number generator for a discrete distribution where the
-  // probability of simulating different numbers is defined by pixel counts.
-  // (Pixel count for each position divided by total number of pixels).
-  std::mt19937 gen;
-  std::discrete_distribution<int> dist(std::begin(x), std::end(x));
-
-  // c++ requires a seed definition so we generate it R and pass it here.
-  gen.seed(seed);
-
   // Loop through the total number of pixels and the total number
   // of simulations.
   int temp = 0;
+  LogicalVector hits = probs < 0;
   for( int j = 0; j < boot; j++){
     for( int i = 0; i < n; i++){
-      // Take a weighted sample of the vector positions.
-      temp = dist(gen);
+
+      // Determine number of probability threshold a random uniform number
+      // exceeds.
+      hits = probs < unif_rand();
+
+      // The number of hits determines the vector position.
+      temp = sum(hits);
+
       v(j, temp) += 1;
     }
   }
